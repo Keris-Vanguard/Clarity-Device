@@ -1,12 +1,12 @@
 import RPi.GPIO as GPIO
 import time
-import statistics
 
 # Constants
 SENSOR_PIN = 16  # GPIO pin connected to AO
 WARMUP_TIME = 20  # Sensor needs warmup time
 READING_INTERVAL = 1  # Time between readings in seconds
-NUM_SAMPLES = 10  # Number of samples to average
+SAMPLE_WINDOW = 100  # Number of readings to take
+READING_DELAY = 0.01  # 10ms between readings
 
 def setup():
     GPIO.setmode(GPIO.BCM)
@@ -15,16 +15,15 @@ def setup():
     time.sleep(WARMUP_TIME)
 
 def get_sensor_readings():
-    readings = []
-    for _ in range(NUM_SAMPLES):
-        # Read digital value (0 or 1)
-        reading = GPIO.input(SENSOR_PIN)
-        readings.append(reading)
-        time.sleep(0.1)
-    return statistics.mean(readings)
+    high_count = 0
+    for _ in range(SAMPLE_WINDOW):
+        if GPIO.input(SENSOR_PIN) == GPIO.HIGH:
+            high_count += 1
+        time.sleep(READING_DELAY)
+    # Convert to percentage (0-1 range)
+    return high_count / SAMPLE_WINDOW
 
 def classify_air_quality(value):
-    # These thresholds should be calibrated based on your specific needs
     if value < 0.3:
         return "Good"
     elif value < 0.6:
