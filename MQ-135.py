@@ -38,7 +38,7 @@ def main():
         while True:
             value = get_sensor_readings()
             quality = classify_air_quality(value)
-            print(f"Air Quality Reading: {value:.2f}, Classification: {quality}")
+            print("Air Quality Reading: " + str(format(value, '.2f')) + ", Classification: " + quality)
             time.sleep(READING_INTERVAL)
             
     except KeyboardInterrupt:
