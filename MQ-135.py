@@ -1,15 +1,33 @@
 import RPi.GPIO as GPIO
 import time
+import subprocess
 
 # Constants
-SENSOR_PIN = 16  # GPIO pin connected to AO
-WARMUP_TIME = 20  # Sensor needs warmup time
-READING_INTERVAL = 1  # Time between readings in seconds
-SAMPLE_WINDOW = 100  # Number of readings to take
-READING_DELAY = 0.01  # 10ms between readings
+SENSOR_PIN = 16
+WARMUP_TIME = 20
+READING_INTERVAL = 1
+SAMPLE_WINDOW = 100
+READING_DELAY = 0.01
+
+def check_gpio_status():
+    try:
+        # Run raspi-gpio get command
+        result = subprocess.run(['raspi-gpio', 'get', str(SENSOR_PIN)], 
+                              capture_output=True, text=True)
+        print("GPIO Status:")
+        print(result.stdout)
+        return True
+    except Exception as e:
+        print(f"Error checking GPIO: {e}")
+        return False
 
 def test_sensor_connection():
     print("Testing MQ-135 sensor connection...")
+    
+    # Check GPIO status first
+    if not check_gpio_status():
+        return False
+        
     print(f"GPIO Pin {SENSOR_PIN} configured for input")
     
     # Read initial value
