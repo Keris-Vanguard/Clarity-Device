@@ -8,11 +8,34 @@ READING_INTERVAL = 1  # Time between readings in seconds
 SAMPLE_WINDOW = 100  # Number of readings to take
 READING_DELAY = 0.01  # 10ms between readings
 
+def test_sensor_connection():
+    print("Testing MQ-135 sensor connection...")
+    print(f"GPIO Pin {SENSOR_PIN} configured for input")
+    
+    # Read initial value
+    initial_value = GPIO.input(SENSOR_PIN)
+    print(f"Initial reading: {initial_value}")
+    
+    # Test multiple readings
+    print("Taking 10 test readings...")
+    for i in range(10):
+        reading = GPIO.input(SENSOR_PIN)
+        print(f"Test reading {i+1}: {reading}")
+        time.sleep(0.5)
+    
+    return True
+
 def setup():
     GPIO.setmode(GPIO.BCM)
     GPIO.setup(SENSOR_PIN, GPIO.IN)
-    print("Warming up MQ-135 sensor...")
-    time.sleep(WARMUP_TIME)
+    
+    # Test connection before warmup
+    if test_sensor_connection():
+        print("Sensor connected successfully!")
+        print("Warming up MQ-135 sensor...")
+        time.sleep(WARMUP_TIME)
+    else:
+        raise Exception("Sensor connection failed!")
 
 def get_sensor_readings():
     high_count = 0
