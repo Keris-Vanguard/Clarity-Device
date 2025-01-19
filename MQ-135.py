@@ -1,88 +1,62 @@
 import RPi.GPIO as GPIO
 import time
-import subprocess
 
-# Constants
 SENSOR_PIN = 16
 WARMUP_TIME = 20
 READING_INTERVAL = 1
-SAMPLE_WINDOW = 100
-READING_DELAY = 0.01
+NUM_SAMPLES = 5
+PULSE_TIMEOUT = 2.0  # Maximum time to wait for pulse
 
-def check_gpio_status():
-    try:
-        # Run raspi-gpio get command
-        result = subprocess.run(['raspi-gpio', 'get', str(SENSOR_PIN)], 
-                              capture_output=True, text=True)
-        print("GPIO Status:")
-        print(result.stdout)
-        return True
-    except Exception as e:
-        print(f"Error checking GPIO: {e}")
-        return False
-
-def test_sensor_connection():
-    print("Testing MQ-135 sensor connection...")
+def get_pulse_duration():
+    # Wait for sensor to go HIGH
+    pulse_start = time.time()
+    while GPIO.input(SENSOR_PIN) == GPIO.LOW:
+        if time.time() - pulse_start > PULSE_TIMEOUT:
+            return 0.0
     
-    # Check GPIO status first
-    if not check_gpio_status():
-        return False
-        
-    print(f"GPIO Pin {SENSOR_PIN} configured for input")
+    # Measure how long it stays HIGH
+    pulse_start = time.time()
+    while GPIO.input(SENSOR_PIN) == GPIO.HIGH:
+        if time.time() - pulse_start > PULSE_TIMEOUT:
+            return PULSE_TIMEOUT
     
-    # Read initial value
-    initial_value = GPIO.input(SENSOR_PIN)
-    print(f"Initial reading: {initial_value}")
-    
-    # Test multiple readings
-    print("Taking 10 test readings...")
-    for i in range(10):
-        reading = GPIO.input(SENSOR_PIN)
-        print(f"Test reading {i+1}: {reading}")
-        time.sleep(0.5)
-    
-    return True
-
-def setup():
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(SENSOR_PIN, GPIO.IN)
-    
-    # Test connection before warmup
-    if test_sensor_connection():
-        print("Sensor connected successfully!")
-        print("Warming up MQ-135 sensor...")
-        time.sleep(WARMUP_TIME)
-    else:
-        raise Exception("Sensor connection failed!")
+    pulse_end = time.time()
+    return pulse_end - pulse_start
 
 def get_sensor_readings():
-    high_count = 0
-    for _ in range(SAMPLE_WINDOW):
-        if GPIO.input(SENSOR_PIN) == GPIO.HIGH:
-            high_count += 1
-        time.sleep(READING_DELAY)
-    # Convert to percentage (0-1 range)
-    return high_count / SAMPLE_WINDOW
+    readings = []
+    for _ in range(NUM_SAMPLES):
+        duration = get_pulse_duration()
+        readings.append(duration)
+        time.sleep(0.1)
+    
+    # Average the readings
+    return sum(readings) / NUM_SAMPLES
 
-def classify_air_quality(value):
-    if value < 0.3:
+def classify_air_quality(duration):
+    # Classify based on pulse duration
+    if duration < 0.1:  # Short pulses = clean air
         return "Good"
-    elif value < 0.6:
+    elif duration < 0.5:  # Medium pulses = moderate
         return "Moderate"
-    else:
+    else:  # Long pulses = poor air
         return "Bad"
 
 def main():
     try:
-        setup()
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(SENSOR_PIN, GPIO.IN)
+        print("Warming up sensor...")
+        time.sleep(WARMUP_TIME)
+        
         while True:
-            value = get_sensor_readings()
-            quality = classify_air_quality(value)
-            print("Air Quality Reading: " + str(format(value, '.2f')) + ", Classification: " + quality)
+            duration = get_sensor_readings()
+            quality = classify_air_quality(duration)
+            print("Pulse Duration: " + str(format(duration, '.3f')) + "s, Air Quality: " + quality)
             time.sleep(READING_INTERVAL)
             
     except KeyboardInterrupt:
-        print("\nProgram stopped by user")
+        print("\nProgram stopped")
     finally:
         GPIO.cleanup()
 
